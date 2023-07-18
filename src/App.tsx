@@ -1,6 +1,6 @@
 import React from "react";
 
-import Scroll from "./scroll";
+import Scroll from "./scroll/scroll";
 
 import "./App.css";
 
