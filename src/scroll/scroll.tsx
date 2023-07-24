@@ -5,67 +5,58 @@ import React, {
   useRef,
   useState,
   useCallback,
+  RefObject,
 } from "react";
-import useSWRInfinite from "swr";
+import useSWRInfinite from "swr/infinite";
+import useSWR from "swr";
 import fetcher from "../fetcher";
-import { Highbox, Middlebox, Mbox, Container } from "./styles";
-import { info } from "console";
-import Scrollbars from "react-custom-scrollbars";
+import { Middlebox, Mbox, Container } from "./styles";
+import Content from "../Content";
 
 const key = process.env.REACT_APP_SERVICE_KEY;
-// http://api.odcloud.kr/api/15045548/v1/uddi:4d020ca4-8fa2-4d62-9e95-b2f282a4079a?serviceKey=${SERVICE_KEY}&page=1&perPage=10
-
-// api/15045548/v1/uddi:4d020ca4-8fa2-4d62-9e95-b2f282a4079a?serviceKey=${key}&page=1&perPage=10&returnType=JSON
 
 const Scroll: FC = () => {
-  const [infos, setInfos] = useState([]);
-  const scrollRef = useRef(null);
-  const { data: memberData } = useSWRInfinite<any>(
-    (index: number) =>
-      `api/15045548/v1/uddi:4d020ca4-8fa2-4d62-9e95-b2f282a4079a?serviceKey=${key}&page=${
-        index + 1
-      }&perPage=10&returnType=JSON`,
+  const [afterdata, setAfterdata] = useState([]);
+  const { data: memberData } = useSWR<any>(
+    () =>
+      `api/15045548/v1/uddi:4d020ca4-8fa2-4d62-9e95-b2f282a4079a?serviceKey=${key}&page=1$&perPage=10&returnType=JSON`,
     fetcher
   );
-  const isEmpty = memberData?.[0]?.length === 0;
-  const isReachingEnd =
-    isEmpty || (memberData && memberData[memberData.length - 1]?.length < 20);
 
   useEffect(() => {
-    setInfos(memberData);
+    if (memberData) {
+      setAfterdata(memberData);
+    }
   }, [memberData]);
 
-  const onScroll = useCallback((val: any) => {
-    if (val.scrollTop === 0 && !isReachingEnd) {
-      console.log("가장 위");
-      // setSize((prev:number)=>prev+1).then(
-      //   ()=>{
+  //무한 스크롤링
+  let options = {
+    root: null, //타켓 요소가 "어디에" 들어왔을때 콜백함수를 실행할 것인지 결정합니다. null이면 viewport가 root로 지정됩니다
+    rootMargin: "0px", //root에 마진값을 주어 범위를 확장 할 수 있습니다.
+    threshold: 1.0, //타겟 요소가 얼마나 들어왔을때 백함수를 실행할 것인지 결정합니다. 1이면 타겟 요소 전체가 들어와야 합니다.
+  };
 
-      //   }
-      // );
-    }
+  //관측시 실행할 콜백함수입니다.
+
+  let callback = () => {
+    console.log("관측되었습니다");
+  };
+  let observer = new IntersectionObserver(callback, options);
+  let target = useRef() as React.MutableRefObject<HTMLDivElement>;
+
+  useEffect(() => {
+    // observer.observe(target.current);
   }, []);
 
-  return memberData ? (
-    <Container>
-      <Scrollbars autoHide ref={scrollRef} onScrollFrame={onScroll}>
-        <Highbox>
-          {infos?.map((e) => {
-            return (
-              <Middlebox>
-                {Object.keys(e).map((key) => (
-                  <p>
-                    {key} : {e[key]}
-                  </p>
-                ))}
-                <Mbox>꽃사진</Mbox>
-              </Middlebox>
-            );
-          })}
-        </Highbox>
-      </Scrollbars>
+  return (
+    <Container ref={callback}>
+      <Middlebox>
+        {afterdata.map((e, index) => {
+          return <Content data={e} key={index} />;
+        })}
+      </Middlebox>
     </Container>
-  ) : null;
+  );
 };
 
 export default Scroll;
