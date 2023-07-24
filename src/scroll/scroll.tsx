@@ -2,7 +2,6 @@ import React, {
   FC,
   Fragment,
   useEffect,
-  useRef,
   useState,
   useCallback,
   RefObject,
@@ -12,46 +11,45 @@ import useSWR from "swr";
 import fetcher from "../fetcher";
 import { Middlebox, Mbox, Container } from "./styles";
 import Content from "../Content";
+import { copyFileSync } from "fs";
 
 const key = process.env.REACT_APP_SERVICE_KEY;
 
 const Scroll: FC = () => {
-  const [afterdata, setAfterdata] = useState([]);
-  const { data: memberData } = useSWR<any>(
-    () =>
-      `api/15045548/v1/uddi:4d020ca4-8fa2-4d62-9e95-b2f282a4079a?serviceKey=${key}&page=1$&perPage=10&returnType=JSON`,
-    fetcher
-  );
+  const getKey = (pageIndex: number, previousPageData: any) => {
+    console.log(pageIndex, previousPageData);
+    if (pageIndex && !previousPageData.length) return null;
+    return `api/15045548/v1/uddi:4d020ca4-8fa2-4d62-9e95-b2f282a4079a?serviceKey=${key}&page=${pageIndex}&returnType=JSON`;
+  };
+  const { data, size, setSize } = useSWRInfinite(getKey, fetcher);
 
-  useEffect(() => {
-    if (memberData) {
-      setAfterdata(memberData);
+  const products = data ? data[0].map((e: any) => e) : [];
+
+  const handleScroll = () => {
+    if (
+      document.documentElement.scrollTop +
+        document.documentElement.clientHeight >=
+      document.documentElement.scrollHeight
+    ) {
+      console.log("감지");
+      setSize((prev) => prev + 1);
     }
-  }, [memberData]);
-
-  //무한 스크롤링
-  let options = {
-    root: null, //타켓 요소가 "어디에" 들어왔을때 콜백함수를 실행할 것인지 결정합니다. null이면 viewport가 root로 지정됩니다
-    rootMargin: "0px", //root에 마진값을 주어 범위를 확장 할 수 있습니다.
-    threshold: 1.0, //타겟 요소가 얼마나 들어왔을때 백함수를 실행할 것인지 결정합니다. 1이면 타겟 요소 전체가 들어와야 합니다.
   };
-
-  //관측시 실행할 콜백함수입니다.
-
-  let callback = () => {
-    console.log("관측되었습니다");
-  };
-  let observer = new IntersectionObserver(callback, options);
-  let target = useRef() as React.MutableRefObject<HTMLDivElement>;
 
   useEffect(() => {
-    // observer.observe(target.current);
+    const timer = setInterval(() => {
+      window.addEventListener("scroll", handleScroll);
+    }, 100);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   return (
-    <Container ref={callback}>
+    <Container>
       <Middlebox>
-        {afterdata.map((e, index) => {
+        {products.map((e: String, index: number) => {
           return <Content data={e} key={index} />;
         })}
       </Middlebox>
